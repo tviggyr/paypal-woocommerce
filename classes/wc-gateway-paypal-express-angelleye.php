@@ -736,7 +736,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
 
 				$payment_exp_ary = explode(';', $paymentAmount_amt);
 				$paymentAmount_amt_final_ec = str_replace($current_currency, '', $paymentAmount_amt);
-				$paymentAmount_amt_final = str_replace(',', '', $paymentAmount_amt_final_ec);
+				$paymentAmount_amt_final = str_replace(array(',', '&nbsp;'), array('',''), $paymentAmount_amt_final_ec);
 				$paymentAmount = round($paymentAmount_amt_final, 2);
 
 				if (isset($order->order_shipping_tax) && !empty($order->order_shipping_tax)) {
@@ -2133,7 +2133,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
 		$current_currency = get_woocommerce_currency_symbol(get_woocommerce_currency());
 
 		$final_order_total_amt_strip_ec = strip_tags($final_order_total['order_total']['value']);
-		$final_order_total_amt_strip = str_replace(',', '', $final_order_total_amt_strip_ec);
+		$final_order_total_amt_strip = str_replace(array(',', '&nbsp;'), array('',''), $final_order_total_amt_strip_ec);
 		$final_order_total_amt = str_replace($current_currency, '', $final_order_total_amt_strip);
 
 

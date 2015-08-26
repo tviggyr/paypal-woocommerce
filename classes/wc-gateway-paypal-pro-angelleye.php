@@ -764,7 +764,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
         $payment_ddp_ary = explode(';', $paymentAmount_amt_ddp);
 
         $paymentAmount_amt_final_dd = str_replace($current_currency, '', $paymentAmount_amt_ddp);
-        $paymentAmount_amt_final_ddp = str_replace(',', '', $paymentAmount_amt_final_dd);
+        $paymentAmount_amt_final_ddp = str_replace(array(',', '&nbsp;'), array('',''), $paymentAmount_amt_final_dd);
 
         $paymentAmount_ddp = round($paymentAmount_amt_final_ddp, 2);
 

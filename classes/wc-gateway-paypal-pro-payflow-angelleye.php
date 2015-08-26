@@ -397,7 +397,7 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
         $paymentAmount_amt_ppf = strip_tags($order_obj_ppf['order_total']['value']);
         $payment_ppf_ary = explode(';', $paymentAmount_amt_ppf);
         $paymentAmount_amt_final_ppf = str_replace($current_currency, '', $paymentAmount_amt_ppf);
-        $paymentAmount_amt_final_ppflow = str_replace(',', '', $paymentAmount_amt_final_ppf);
+        $paymentAmount_amt_final_ppflow = str_replace(array(',', '&nbsp;'), array('',''), $paymentAmount_amt_final_ppf);
 
 
         $paymentAmount_ppf = number_format($paymentAmount_amt_final_ppflow, 2, '.', '');
