@@ -406,7 +406,7 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
 					'trxtype'=> $this->payment_action == 'Authorization' ? 'A' : 'S', 				// Required.  Indicates the type of transaction to perform.  Values are:  A = Authorization, B = Balance Inquiry, C = Credit, D = Delayed Capture, F = Voice Authorization, I = Inquiry, L = Data Upload, N = Duplicate Transaction, S = Sale, V = Void
 					'acct'=>$card_number, 				// Required for credit card transaction.  Credit card or purchase card number.
 					'expdate'=>$card_exp, 				// Required for credit card transaction.  Expiration date of the credit card.  Format:  MMYY
-					'amt'=> number_format($order->get_total(),2,'.',''), 					// Required.  Amount of the transaction.  Must have 2 decimal places. 
+					'amt'=> number_format(apply_filters( 'raw_woocommerce_price', $order->get_total()),2,'.',''), 					// Required.  Amount of the transaction.  Must have 2 decimal places.
 					'currency'=>get_woocommerce_currency(), // 
 					'dutyamt'=>'', 				//
 					'freightamt'=>'', 			//
@@ -479,13 +479,13 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
                             
                             $Item['L_NUMBER' . $item_loop] = $sku;
                             $Item['L_NAME' . $item_loop] = $item['name'];
-                            $Item['L_COST' . $item_loop] = round( $item['line_subtotal'] / $item['qty'], 2 );
+                            $Item['L_COST' . $item_loop] = round( apply_filters( 'raw_woocommerce_price', $item['line_subtotal']) / $item['qty'], 2 );
                             $Item['L_QTY' . $item_loop] = $item['qty'];
                             if ($sku) {
                                 $Item['L_SKU' . $item_loop] = $sku;
                             }
                             $OrderItems = array_merge($OrderItems, $Item);
-                            $ITEMAMT += round( $item['line_subtotal'] / $item['qty'], 2 ) * $item['qty'];
+                            $ITEMAMT += round( apply_filters( 'raw_woocommerce_price', $item['line_subtotal']) / $item['qty'], 2 ) * $item['qty'];
                             $item_loop++;
                         }
                     }
@@ -515,18 +515,18 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
 	                            $OrderItems = array_merge($OrderItems, $Item);
 	                            $item_loop++;
 	                        }
-	                        $ITEMAMT = $ITEMAMT - $order->get_order_discount();
+	                        $ITEMAMT = $ITEMAMT -$order->get_order_discount();
 	                    }
 					} else {
 						if ($order->get_total_discount() > 0) {
 
 							 	$Item['L_NUMBER' . $item_loop] = $code;
 	                            $Item['L_NAME' . $item_loop] = 'Order Discount';
-	                            $Item['L_COST' . $item_loop] = '-' . $order->get_total_discount();
+	                            $Item['L_COST' . $item_loop] = '-' . apply_filters( 'raw_woocommerce_price', $order->get_total_discount());
 	                            $Item['L_QTY' . $item_loop] = 1;
 	                            $OrderItems = array_merge($OrderItems, $Item);
 	                            $item_loop++;
-	                        	$ITEMAMT -= $order->get_total_discount();
+	                        	$ITEMAMT -= apply_filters( 'raw_woocommerce_price',$order->get_total_discount());
                     	}
 					}
 
@@ -541,6 +541,8 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
             			$tax = $order->get_total_tax();
             		}
 
+                    $shipping   = apply_filters( 'raw_woocommerce_price', $shipping);
+                    $tax        = apply_filters( 'raw_woocommerce_price', $tax);
                     //tax
                     if ($tax > 0) {
                         $PayPalRequestData['taxamt'] = number_format($tax,2,'.','');
@@ -559,12 +561,12 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
                 	
                     $Item['L_NUMBER' . $item_loop] = $fee->id;
                     $Item['L_NAME' . $item_loop] = $fee->name;
-                    $Item['L_AMT' . $item_loop] = number_format($fee->amount, 2, '.', '');
+                    $Item['L_AMT' . $item_loop] = number_format(apply_filters( 'raw_woocommerce_price',$fee->amount), 2, '.', '');
                     $Item['L_QTY' . $item_loop] = 1;
                     $OrderItems = array_merge($OrderItems, $Item);
                     $item_loop++;
 
-                    $ITEMAMT += $fee->amount;
+                    $ITEMAMT += apply_filters( 'raw_woocommerce_price', $fee->amount);
                 }
             }
             
@@ -597,8 +599,8 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
 			// Rounding amendment
 			
 	        // Rounding amendment
-	       if (trim(number_format(WC()->cart->total, 2, '.', '')) !== trim(number_format($ITEMAMT,2,'.','') + number_format($tax, 2, '.', '') + number_format($shipping, 2, '.', ''))) {
-				$diffrence_amount = $this->get_diffrent(WC()->cart->total, $ITEMAMT + $tax + number_format($shipping, 2, '.', ''));
+	       if (trim(number_format(apply_filters( 'raw_woocommerce_price',WC()->cart->total), 2, '.', '')) !== trim(number_format($ITEMAMT,2,'.','') + number_format($tax, 2, '.', '') + number_format($shipping, 2, '.', ''))) {
+				$diffrence_amount = $this->get_diffrent(apply_filters( 'raw_woocommerce_price',WC()->cart->total), $ITEMAMT + $tax + number_format($shipping, 2, '.', ''));
 	            if($shipping > 0) {
 					$PayPalRequestData['freightamt'] = round($shipping + $diffrence_amount, 2);
 	            } elseif ($tax > 0) {

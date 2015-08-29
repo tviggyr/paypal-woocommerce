@@ -1910,7 +1910,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                                 'name' => 'Order Discount',
                                 'number' => $code,
                                 'qty' => '1',
-                                'amt' => '-' . number_format(apply_filters( 'raw_woocommerce_price', WC()->cart->coupon_discount_amounts[$code]), 2, '.', '')
+                                'amt' => '-' . number_format( WC()->cart->coupon_discount_amounts[$code], 2, '.', '')
                             );
                             array_push($PaymentOrderItems, $Item);
                         }
@@ -1933,16 +1933,19 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
              * Set shipping and tax values.
              */
             if (get_option('woocommerce_prices_include_tax') == 'yes') {
-                $shipping = apply_filters( 'raw_woocommerce_price', $order->get_total_shipping() + $order->get_shipping_tax());
+                $shipping =  $order->get_total_shipping() + $order->get_shipping_tax();
                 $tax = 0;
             } else {
                 $shipping = apply_filters( 'raw_woocommerce_price', $order->get_total_shipping());
-                $tax =  apply_filters( 'raw_woocommerce_price',  $order->get_total_tax());
+                $tax =   $order->get_total_tax();
             }
             
             if('yes' === get_option( 'woocommerce_calc_taxes' ) && 'yes' === get_option( 'woocommerce_prices_include_tax' )) {
-            	$tax =  apply_filters( 'raw_woocommerce_price', $order->get_total_tax());
+            	$tax =  $order->get_total_tax();
             }
+
+            $shipping   = apply_filters( 'raw_woocommerce_price', $shipping);
+            $tax        = apply_filters( 'raw_woocommerce_price', $tax);
             
             if( $tax > 0) {
         		$tax = number_format($tax, 2, '.', '');
@@ -2285,12 +2288,14 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
             $reason = html_entity_decode($reason, ENT_NOQUOTES, 'UTF-8');
         }
 
-        // Prepare request arrays
+        $amount = apply_filters( 'raw_woocommerce_price',$amount);
+        $order_total = apply_filters( 'raw_woocommerce_price',$order->get_total());
+            // Prepare request arrays
         $RTFields = array(
             'transactionid' => $order->get_transaction_id(), // Required.  PayPal transaction ID for the order you're refunding.
             'payerid' => '', // Encrypted PayPal customer account ID number.  Note:  Either transaction ID or payer ID must be specified.  127 char max
             'invoiceid' => '', // Your own invoice tracking number.
-            'refundtype' => $order->get_total() == $amount ? 'Full' : 'Partial', // Required.  Type of refund.  Must be Full, Partial, or Other.
+            'refundtype' => $order_total == $amount ? 'Full' : 'Partial', // Required.  Type of refund.  Must be Full, Partial, or Other.
             'amt' => number_format($amount, 2, '.', ''), // Refund Amt.  Required if refund type is Partial.
             'currencycode' => $order->get_order_currency(), // Three-letter currency code.  Required for Partial Refunds.  Do not use for full refunds.
             'note' => $reason, // Custom memo about the refund.  255 char max.

@@ -772,7 +772,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 								);
 							
 		$PaymentDetails = array(
-								'amt' => number_format( $order->get_total(), 2, '.', '' ), 							// Required.  Total amount of order, including shipping, handling, and tax.  
+								'amt' => number_format( apply_filters( 'raw_woocommerce_price', $order->get_total()), 2, '.', '' ), 							// Required.  Total amount of order, including shipping, handling, and tax.
 								'currencycode' => get_woocommerce_currency(), 					// Required.  Three-letter currency code.  Default is USD.
 								'insuranceamt' => '', 					// Total shipping insurance costs for this order.  
 								'shipdiscamt' => '0.00', 					// Shipping discount for the order, specified as a negative number.
@@ -812,7 +812,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 					$Item	 = array(
 									'l_name' => $item['name'], 						// Item Name.  127 char max.
 									'l_desc' => '', 						// Item description.  127 char max.
-									'l_amt' => round( $item['line_subtotal'] / $item['qty'], 2 ), 							// Cost of individual item.
+									'l_amt' => round( apply_filters( 'raw_woocommerce_price', $item['line_subtotal']) / $item['qty'], 2 ), 							// Cost of individual item.
 									'l_number' => $sku, 						// Item Number.  127 char max.
 									'l_qty' => $item['qty'], 							// Item quantity.  Must be any positive integer.  
 									'l_taxamt' => '', 						// Item's sales tax amount.
@@ -822,7 +822,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 									);
 					array_push($OrderItems, $Item);
 
-                    $ITEMAMT += round( $item['line_subtotal'] / $item['qty'], 2 ) * $item['qty'];
+                    $ITEMAMT += round( apply_filters( 'raw_woocommerce_price', $item['line_subtotal']) / $item['qty'], 2 ) * $item['qty'];
                     $item_loop++;
                 }
             }
@@ -836,7 +836,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 						$Item	 = array(
 										'l_name' => 'Cart Discount', 						// Item Name.  127 char max.
 										'l_desc' => '', 						// Item description.  127 char max.
-										'l_amt' => '-'.WC()->cart->coupon_discount_amounts[$code], 							// Cost of individual item.
+										'l_amt' => '-'.apply_filters( 'raw_woocommerce_price', WC()->cart->coupon_discount_amounts[$code]), 							// Cost of individual item.
 										'l_number' => $code, 						// Item Number.  127 char max.
 										'l_qty' => '1', 							// Item quantity.  Must be any positive integer.  
 										'l_taxamt' => '', 						// Item's sales tax amount.
@@ -869,17 +869,17 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 						array_push($OrderItems, $Item);
 	                }
 					
-	                $ITEMAMT = $ITEMAMT - $order->get_order_discount();
+	                $ITEMAMT = $ITEMAMT - apply_filters( 'raw_woocommerce_price', $order->get_order_discount());
 	            }
              } else {
                     if ($order->get_total_discount() > 0) {
                         $Item = array(
                             'l_name' => 'Total Discount',
                             'l_qty' => 1,
-                            'l_amt' => - number_format($order->get_total_discount(), 2, '.', ''),
+                            'l_amt' => - number_format(apply_filters( 'raw_woocommerce_price', $order->get_total_discount()), 2, '.', ''),
                         );
                         array_push($OrderItems, $Item);
-                        $ITEMAMT -= number_format($order->get_total_discount(), 2, '.', '');
+                        $ITEMAMT -= number_format(apply_filters( 'raw_woocommerce_price', $order->get_total_discount()), 2, '.', '');
                     }
                 }
 			
@@ -900,15 +900,18 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
             if('yes' === get_option( 'woocommerce_calc_taxes' ) && 'yes' === get_option( 'woocommerce_prices_include_tax' )) {
             	$tax = $order->get_total_tax();
             }
+
+            $shipping   = apply_filters( 'raw_woocommerce_price', $shipping);
+            $tax        = apply_filters( 'raw_woocommerce_price', $tax);
             
             if ($tax>0)
 			{
-				$PaymentDetails['taxamt'] = number_format($tax, 2, '.', ''); 						// Required if you specify itemized cart tax details. Sum of tax for all items on the order.  Total sales tax. 
+				$PaymentDetails['taxamt'] = number_format( $tax, 2, '.', ''); 						// Required if you specify itemized cart tax details. Sum of tax for all items on the order.  Total sales tax.
             }
 
             if($shipping > 0)
 			{
-				$PaymentDetails['shippingamt'] = number_format($shipping, 2, '.', '');					// Total shipping costs for the order.  If you specify shippingamt, you must also specify itemamt.
+				$PaymentDetails['shippingamt'] = number_format( $shipping, 2, '.', '');					// Total shipping costs for the order.  If you specify shippingamt, you must also specify itemamt.
             }
         }
 		
@@ -921,7 +924,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 			$Item = array(
 				'name' => $fee->name, // Item name. 127 char max.
 				'desc' => '', // Item description. 127 char max.
-				'amt' => number_format($fee->amount,2,'.',''), // Cost of item.
+				'amt' => number_format(apply_filters( 'raw_woocommerce_price', $fee->amount),2,'.',''), // Cost of item.
 				'number' => $fee->id, // Item number. 127 char max.
 				'qty' => 1, // Item qty on order. Any positive integer.
 				'taxamt' => '', // Item sales tax
@@ -944,7 +947,7 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
 				
 			array_push($OrderItems, $Item);
 			
-			$ITEMAMT += $fee->amount*$Item['qty'];
+			$ITEMAMT += apply_filters( 'raw_woocommerce_price', $fee->amount)*$Item['qty'];
 			$item_loop++;
 		}
         if( !$this->send_items ){
@@ -993,9 +996,9 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway {
         }
 		
         // Rounding amendment
-       if (trim(number_format(WC()->cart->total, 2, '.', '')) !== trim(number_format($ITEMAMT,2,'.','') + number_format($tax, 2, '.', '') + number_format($shipping, 2, '.', ''))) {
+       if (trim(number_format(apply_filters( 'raw_woocommerce_price', WC()->cart->total), 2, '.', '')) !== trim(number_format($ITEMAMT,2,'.','') + number_format($tax, 2, '.', '') + number_format($shipping, 2, '.', ''))) {
             
-			$diffrence_amount = $this->get_diffrent(WC()->cart->total, $ITEMAMT + $tax + number_format($shipping, 2, '.', ''));
+			$diffrence_amount = $this->get_diffrent(apply_filters( 'raw_woocommerce_price', WC()->cart->total), $ITEMAMT + $tax + number_format($shipping, 2, '.', ''));
             if($shipping > 0) {
 				$PayPalRequestData['PaymentDetails']['shippingamt'] = number_format($shipping + $diffrence_amount, 2, '.', '');
             } elseif ($tax > 0) {
