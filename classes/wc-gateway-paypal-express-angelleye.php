@@ -1425,7 +1425,15 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
             }
             $Payment['order_items'] = $PaymentOrderItems;
         } else {
-            $Payment['order_items'] = array();
+            $Payment['order_items'] = array(
+                array(
+                    'name'  => __( 'Order', 'woocommerce' ),
+                    'desc' => '', // Item description. 127 char max.
+                    'amt' => $PaymentData['itemamt'], // Cost of item.
+                    'qty' => 1
+
+                )
+            );
         }
 
         /**
