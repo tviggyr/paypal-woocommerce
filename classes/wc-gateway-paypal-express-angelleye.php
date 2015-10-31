@@ -913,7 +913,13 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                 }
             }
         } elseif (isset($_GET['pp_action']) && $_GET['pp_action'] == 'payaction') {
-            if (isset($_POST) || ($this->skip_final_review == 'yes' && get_option('woocommerce_enable_guest_checkout') === "yes" && apply_filters( 'woocommerce_enable_guest_checkout', get_option('woocommerce_enable_guest_checkout')))) {
+            //if empty TOKEN redirect to cart page
+            if (empty(WC()->session->TOKEN)) {
+                $ms = sprintf(__('Sorry, your session has expired. <a href=%s>Return to homepage &rarr;</a>', 'paypal-for-woocommerce'), '"' . home_url() . '"');
+                $ec_confirm_message = apply_filters('angelleye_ec_confirm_message', $ms);
+                wc_add_notice($ec_confirm_message, "error");
+                wp_redirect(get_permalink(wc_get_page_id('cart')));
+            } elseif (isset($_POST) || ($this->skip_final_review == 'yes' && get_option('woocommerce_enable_guest_checkout') === "yes" && apply_filters( 'woocommerce_enable_guest_checkout', get_option('woocommerce_enable_guest_checkout')))) {
                 $result = unserialize(WC()->session->RESULT);
                 /* create account start */
                 if (isset($_POST['create_act']) && !empty($_POST['create_act'])) {
@@ -1081,7 +1087,10 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                 $this->add_log('...Order Total: ' . $order->order_total);
                 $this->add_log('...Cart Total: ' . WC()->cart->get_total());
                 $this->add_log("...Token:" . $this->get_session('TOKEN'));
-                $result = $this->ConfirmPayment($order->order_total);
+                if (!empty(WC()->session->TOKEN)) {
+                    $result = $this->ConfirmPayment($order->order_total);
+                }
+
 
                 // Set Customer Name
                 if (!get_current_user_id()) {
@@ -1141,7 +1150,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                     //add hook
                     do_action('woocommerce_checkout_order_processed', $order_id);
                     unset(WC()->session->checkout_form);
-
+                    unset(WC()->session->TOKEN);
                     // Empty the Cart
                     WC()->cart->empty_cart();
 
@@ -1156,7 +1165,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                     $ErrorShortMsg = urldecode($result["L_SHORTMESSAGE0"]);
                     $ErrorLongMsg = urldecode($result["L_LONGMESSAGE0"]);
                     $ErrorSeverityCode = urldecode($result["L_SEVERITYCODE0"]);
-                    $this->add_log('SetExpressCheckout API call failed. ');
+                    $this->add_log('DoExpressCheckoutPayment API call failed. ');
                     $this->add_log('Detailed Error Message: ' . $ErrorLongMsg);
                     $this->add_log('Short Error Message: ' . $ErrorShortMsg);
                     $this->add_log('Error Code: ' . $ErrorCode);

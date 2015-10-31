@@ -13,7 +13,9 @@ $frm_act = add_query_arg(array( 'pp_action' => 'payaction'));
 $is_paypal_express = true;
 $result = unserialize(WC()->session->RESULT);
 $email = (!empty($_POST['email']))?$_POST['email']:$result['EMAIL'];
-if (!isset(WC()->session->TOKEN)) {
+
+if (empty(WC()->session->TOKEN)) {
+    echo "hello";
     $ms = sprintf(__('Sorry, your session has expired. <a href=%s>Return to homepage &rarr;</a>', 'paypal-for-woocommerce'), '"' . home_url() . '"');
     $ec_confirm_message = apply_filters('angelleye_ec_confirm_message', $ms);
     wc_add_notice($ec_confirm_message, "error");
