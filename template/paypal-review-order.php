@@ -15,7 +15,6 @@ $result = unserialize(WC()->session->RESULT);
 $email = (!empty($_POST['email']))?$_POST['email']:$result['EMAIL'];
 
 if (empty(WC()->session->TOKEN)) {
-    echo "hello";
     $ms = sprintf(__('Sorry, your session has expired. <a href=%s>Return to homepage &rarr;</a>', 'paypal-for-woocommerce'), '"' . home_url() . '"');
     $ec_confirm_message = apply_filters('angelleye_ec_confirm_message', $ms);
     wc_add_notice($ec_confirm_message, "error");
