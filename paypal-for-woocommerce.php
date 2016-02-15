@@ -4,7 +4,7 @@
  * Plugin Name:       PayPal for WooCommerce
  * Plugin URI:        http://www.angelleye.com/product/paypal-for-woocommerce-plugin/
  * Description:       Easily enable PayPal Express Checkout, Website Payments Pro 3.0, Payments Pro 2.0 (PayFlow), and PayPal Plus (Germany).  Each option is available separately so you can enable them individually.
- * Version:           1.1.9.1
+ * Version:           1.1.9.2
  * Author:            Angell EYE
  * Author URI:        http://www.angelleye.com/
  * License:           GNU General Public License v3.0
@@ -59,7 +59,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
          *
          */
         
-        const VERSION_PFW = '1.1.9.1';
+        const VERSION_PFW = '1.1.9.2';
         
         public function __construct()
         {
@@ -108,6 +108,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
             add_action('admin_enqueue_scripts', array( $this, 'angelleye_woocommerce_admin_enqueue_scripts' ) );
             add_action( 'wp_ajax_pfw_ed_shipping_bulk_tool', array( $this, 'angelleye_woocommerce_pfw_ed_shipping_bulk_tool' ) );
             add_action( 'woocommerce_checkout_process', array( $this, 'angelleye_paypal_express_checkout_process_checkout_fields' ) );
+            
         }
 
         /**
@@ -264,6 +265,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
 
             require_once('classes/wc-gateway-paypal-pro-payflow-angelleye.php');
             require_once('classes/wc-gateway-paypal-pro-angelleye.php');
+            require_once('classes/wc-gateway-braintree-angelleye.php');
             require_once('classes/wc-gateway-paypal-express-angelleye.php');
 
             if (version_compare(phpversion(), '5.3.0', '>=')) {
@@ -339,7 +341,6 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
 
                 wp_localize_script( 'wc-checkout', 'wc_checkout_params', apply_filters( 'wc_checkout_params', array(
                     'ajax_url'                  => WC()->ajax_url(),
-                    'ajax_loader_url'           => apply_filters( 'woocommerce_ajax_loader_url', $assets_path . 'images/select2-spinner.gif' ),
                     'update_order_review_nonce' => wp_create_nonce( "update-order-review" ),
                     'apply_coupon_nonce'        => wp_create_nonce( "apply-coupon" ),
                     'option_guest_checkout'     => get_option( 'woocommerce_enable_guest_checkout' ),
@@ -408,6 +409,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
             $methods[] = 'WC_Gateway_PayPal_Pro_AngellEYE';
             $methods[] = 'WC_Gateway_PayPal_Pro_Payflow_AngellEYE';
             $methods[] = 'WC_Gateway_PayPal_Express_AngellEYE';
+            $methods[] = 'WC_Gateway_Braintree_AngellEYE';
             if (version_compare(phpversion(), '5.3.0', '>=')) {
                 $methods[] = 'WC_Gateway_PayPal_Plus_AngellEYE';
             }
@@ -520,7 +522,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
                         }
                         $add_to_cart_action = esc_url(add_query_arg( 'express_checkout', '1'));
                         echo '<div id="paypal_ec_button_product">';
-                        echo '<input data-action="'.$add_to_cart_action.'" type="submit" style="float:left;margin-left:10px;',$hide,'" class="single_variation_wrap_angelleye paypal_checkout_button button alt '.$button_dynamic_class.'" name="express_checkout"  onclick="',"jQuery('form.cart').attr('action','",$add_to_cart_action,"');jQuery('form.cart').submit();",'" value="' .$button_text .'"/>';
+                        echo '<input data-action="'.$add_to_cart_action.'" type="button" style="float:left;margin-left:10px;',$hide,'" class="single_variation_wrap_angelleye paypal_checkout_button button alt '.$button_dynamic_class.'" name="express_checkout"  value="' .$button_text .'"/>';
                         echo '</div>';
                         echo '<div class="clear"></div>';
                         break;
