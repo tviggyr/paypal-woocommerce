@@ -48,21 +48,113 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         <h3><?php _e('Braintree', 'paypal-for-woocommerce'); ?></h3>
         <p><?php _e($this->method_description, 'paypal-for-woocommerce'); ?></p>
         <table class="form-table">
+            <?php $this->admin_options_header(); ?>
+        </table>
+        <table class="form-table">
             <?php $this->generate_settings_html(); ?>
-            <script type="text/javascript">
-                jQuery('#woocommerce_braintree_sandbox').change(function () {
-                    var sandbox = jQuery('#woocommerce_braintree_sandbox_public_key, #woocommerce_braintree_sandbox_private_key, #woocommerce_braintree_sandbox_merchant_id').closest('tr'),
-                            production = jQuery('#woocommerce_braintree_public_key, #woocommerce_braintree_private_key, #woocommerce_braintree_merchant_id').closest('tr');
-                    if (jQuery(this).is(':checked')) {
-                        sandbox.show();
-                        production.hide();
-                    } else {
-                        sandbox.hide();
-                        production.show();
-                    }
-                }).change();
-            </script>
-        </table> <?php
+        </table>
+        <script type="text/javascript">
+            jQuery('#woocommerce_braintree_sandbox').change(function () {
+                var sandbox = jQuery('#woocommerce_braintree_sandbox_public_key, #woocommerce_braintree_sandbox_private_key, #woocommerce_braintree_sandbox_merchant_id').closest('tr'),
+                        production = jQuery('#woocommerce_braintree_public_key, #woocommerce_braintree_private_key, #woocommerce_braintree_merchant_id').closest('tr');
+                if (jQuery(this).is(':checked')) {
+                    sandbox.show();
+                    production.hide();
+                } else {
+                    sandbox.hide();
+                    production.show();
+                }
+            }).change();
+        </script> <?php
+    }
+
+    public function admin_options_header() {
+
+        $current_user = wp_get_current_user();
+        $section_slug = strtolower(get_class($this));
+
+        $production_connect_url = 'https://connect.woocommerce.com/login/braintree';
+        $sandbox_connect_url = 'https://connect.woocommerce.com/login/braintreesandbox';
+
+        $redirect_url = add_query_arg(
+                array(
+            'page' => 'wc-settings',
+            'tab' => 'checkout',
+            'section' => $section_slug
+                ), admin_url('admin.php')
+        );
+        $redirect_url = wp_nonce_url($redirect_url, 'connect_paypal_braintree', 'wc_paypal_braintree_admin_nonce');
+
+        // Note:  We doubly urlencode the redirect url to avoid Braintree's server
+        // decoding it which would cause loss of query params on the final redirect
+        $query_args = array(
+            'redirect' => urlencode(urlencode($redirect_url)),
+            'scopes' => 'read_write'
+        );
+
+        $production_connect_url = add_query_arg($query_args, $production_connect_url);
+        $sandbox_connect_url = add_query_arg($query_args, $sandbox_connect_url);
+
+        $disconnect_url = add_query_arg(
+                array(
+            'page' => 'wc-settings',
+            'tab' => 'checkout',
+            'section' => $section_slug,
+            'disconnect_paypal_braintree' => 1
+                ), admin_url('admin.php')
+        );
+        $disconnect_url = wp_nonce_url($disconnect_url, 'disconnect_paypal_braintree', 'wc_paypal_braintree_admin_nonce');
+        ?>
+        <div class='paypal-braintree-admin-header'>
+            <div class='paypal-braintree-admin-brand'>
+                <img src="<?php echo plugins_url('../assets/images/branding/paypal-braintree-horizontal.png', __FILE__); ?>" />
+            </div>
+            <div class='paypal-braintree-admin-payment-methods'>
+                <img src="<?php echo plugins_url('../assets/images/payments/visa.png', __FILE__); ?>" />
+                <img src="<?php echo plugins_url('../assets/images/payments/master-card.png', __FILE__); ?>" />
+                <img src="<?php echo plugins_url('../assets/images/payments/discover.png', __FILE__); ?>" />
+                <img src="<?php echo plugins_url('../assets/images/payments/american-express.png', __FILE__); ?>" />
+                <img src="<?php echo plugins_url('../assets/images/payments/paypal.png', __FILE__); ?>" />
+            </div>
+        </div>
+        <?php if (empty($this->merchant_access_token)) { ?>
+            <p class='paypal-braintree-admin-connect-prompt'>
+            <?php echo esc_html('Connect with Braintree to start accepting credit and debit card payments in your checkout.', 'woocommerce-gateway-paypal-braintree'); ?>
+                <br/>
+                <a href="https://www.braintreepayments.com/partners/learn-more" target="_blank">
+                <?php echo esc_html('Learn more', 'woocommerce-gateway-paypal-braintree'); ?>
+                </a>
+            </p>
+                <?php } ?>
+
+        <table class="form-table">
+            <tbody>
+                <tr>
+                    <th>
+        <?php _e('Connect/Disconnect', 'woocommerce-gateway-paypal-braintree'); ?>
+                    </th>
+                    <td>
+                        <?php if (!empty($this->merchant_access_token)) { ?>
+                            <a href="<?php echo esc_attr($disconnect_url); ?>" class='button-primary'>
+                            <?php echo esc_html__('Disconnect from PayPal Powered by Braintree', 'woocommerce-gateway-paypal-braintree'); ?>
+                            </a>
+                            <?php } else { ?>
+                            <a href="<?php echo esc_attr($production_connect_url); ?>">
+                                <img src="<?php echo plugins_url('../assets/images/button/connect-braintree.png', __FILE__); ?>"/>
+                            </a>
+                            <br/>
+                            <br/>
+                            <a href="<?php echo esc_attr($sandbox_connect_url); ?>">
+            <?php echo esc_html__('Not ready to accept live payments? Click here to connect using sandbox mode.', 'woocommerce-gateway-paypal-braintree'); ?>
+                            </a>
+                            <?php } ?>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+
+        <?php
     }
 
     /**
@@ -74,7 +166,7 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         }
         if (version_compare(phpversion(), '5.2.1', '<')) {
             echo '<div class="error"><p>' . sprintf(__('Braintree Error: Braintree requires PHP 5.2.1 and above. You are using version %s.', 'woocommerce'), phpversion()) . '</p></div>';
-        } 
+        }
         if ('no' == get_option('woocommerce_force_ssl_checkout') && !class_exists('WordPressHTTPS') && $this->enable_braintree_drop_in == false && $this->sandbox == 'no') {
             echo '<div class="error"><p>' . sprintf(__('Braintree is enabled, but the <a href="%s">force SSL option</a> is disabled; your checkout may not be secure! Please enable SSL and ensure your server has a valid SSL certificate - Braintree custome credit card UI will only work in sandbox mode.', 'paypal-for-woocommerce'), admin_url('admin.php?page=wc-settings&tab=checkout')) . '</p></div>';
         }
@@ -248,7 +340,7 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
                         if ("VALIDATION" === a.type) {
                             if (is_angelleye_braintree_selected()) {
                                 console.log("configuration error " + a.message);
-                                jQuery( '.woocommerce-error, .braintree-token', ccForm ).remove();
+                                jQuery('.woocommerce-error, .braintree-token', ccForm).remove();
                                 ccForm.prepend('<ul class="woocommerce-error"><li>' + a.message + '</li></ul>');
                                 return $form.unblock();
                             }
