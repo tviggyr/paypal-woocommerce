@@ -10,6 +10,8 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
     /**
      * Constuctor
      */
+    public $notices = [];
+
     function __construct() {
         $this->id = 'braintree';
         $this->icon = apply_filters('woocommerce_braintree_icon', plugins_url('assets/images/cards.png', __DIR__));
@@ -22,6 +24,8 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         );
         $this->init_form_fields();
         $this->init_settings();
+        $just_connected = $this->possibly_save_access_token();
+        $just_disconnected = $this->possibly_discard_access_token();
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
         $this->enabled = $this->get_option('enabled');
@@ -40,8 +44,7 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         add_action('admin_notices', array($this, 'checks'));
         $this->merchant_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
         $this->merchant_id = get_option('wc_paypal_braintree_merchant_id', '');
-        $just_connected = $this->possibly_save_access_token();
-        $just_disconnected = $this->possibly_discard_access_token();
+
         // Now that $this->debug is set, we can use logging
         if ($just_connected) {
             $this->add_log("Info: Connected to PayPal Braintree successfully. Merchant ID = {$this->merchant_id}");
@@ -53,6 +56,7 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
             $this->enabled = 'no';
             return;
         }
+        add_action('admin_notices', array($this, 'admin_notices'), 15);
     }
 
     /**
@@ -84,7 +88,6 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
     }
 
     public function admin_options_header() {
-        $current_user = wp_get_current_user();
         $section_slug = strtolower(get_class($this));
         $production_connect_url = 'https://connect.woocommerce.com/login/braintree';
         $sandbox_connect_url = 'https://connect.woocommerce.com/login/braintreesandbox';
@@ -179,19 +182,6 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         }
         $this->add_dependencies_admin_notices();
     }
-
-//    /**
-//     * Check if this gateway is enabled
-//     */
-//    public function is_available() {
-//        if ('yes' != $this->enabled) {
-//            return false;
-//        }
-//        if (!$this->merchant_id || !$this->public_key || !$this->private_key) {
-//            return false;
-//        }
-//        return true;
-//    }
 
     public function validate_fields() {
         if (!$this->enable_braintree_drop_in) {
@@ -326,7 +316,6 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
     public function payment_fields() {
         $this->angelleye_braintree_lib();
         $this->add_log('Begin Braintree_ClientToken::generate Request');
-        //$clientToken = Braintree_ClientToken::generate();
         $braintree_gateway = new Braintree_Gateway(array(
             'accessToken' => $this->merchant_access_token,
         ));
@@ -503,7 +492,6 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
                 }
                 $this->add_log('Braintree_Transaction::sale Reuest Data ' . print_r($log, true));
             }
-//            $this->response = Braintree_Transaction::sale($request_data);
             $gateway = new Braintree_Gateway(array(
                 'accessToken' => $this->merchant_access_token,
             ));
@@ -877,7 +865,9 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         update_option('wc_paypal_braintree_merchant_id', $merchant_id);
         $environment = $gateway->config->getEnvironment(); // sandbox or production
         update_option('wc_paypal_braintree_environment', $environment);
-        //wc_add_notice(__('Connected successfully.', 'woocommerce-gateway-paypal-braintree'));
+        $this->add_admin_notice(
+                'connected_successfully', 'updated', __('Connected successfully.', 'woocommerce-gateway-paypal-braintree')
+        );
         return true;
     }
 
@@ -901,15 +891,12 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         }
         delete_option('wc_paypal_braintree_merchant_access_token');
         delete_option('wc_paypal_braintree_merchant_id');
-        //wc_add_notice(__('Disconnected successfully.', 'woocommerce-gateway-paypal-braintree'));
+        $this->add_admin_notice(
+                'disconnected_successfully', 'updated', __('Disconnected successfully.', 'woocommerce-gateway-paypal-braintree')
+        );
         return true;
     }
 
-    /**
-     * Don't allow use of this extension if the currency is not supported or if setup is incomplete
-     *
-     * @since 1.0.0
-     */
     function is_valid_for_use() {
         if (!is_ssl() && !$this->sandbox) {
             return false;
@@ -1093,6 +1080,21 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         );
 
         return ( in_array(get_woocommerce_currency(), $supported_currencies) );
+    }
+
+    public function admin_notices() {
+        foreach ((array) $this->notices as $notice_key => $notice) {
+            echo "<div class='" . esc_attr(sanitize_html_class($notice['class'])) . "'><p>";
+            echo wp_kses($notice['message'], array('a' => array('href' => array())));
+            echo "</p></div>";
+        }
+    }
+
+    public function add_admin_notice($slug, $class, $message) {
+        $this->notices[$slug] = array(
+            'class' => $class,
+            'message' => $message
+        );
     }
 
 }
