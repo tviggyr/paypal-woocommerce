@@ -28,22 +28,18 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         $just_disconnected = $this->possibly_discard_access_token();
         $this->title = $this->get_option('title');
         $this->description = $this->get_option('description');
-        $this->enabled = $this->get_option('enabled');
-        $this->sandbox = $this->get_option('sandbox');
-        $this->environment = $this->sandbox == 'no' ? 'production' : 'sandbox';
-        $this->merchant_id = $this->sandbox == 'no' ? $this->get_option('merchant_id') : $this->get_option('sandbox_merchant_id');
-        $this->private_key = $this->sandbox == 'no' ? $this->get_option('private_key') : $this->get_option('sandbox_private_key');
-        $this->public_key = $this->sandbox == 'no' ? $this->get_option('public_key') : $this->get_option('sandbox_public_key');
         $this->enable_braintree_drop_in = $this->get_option('enable_braintree_drop_in') === "yes" ? true : false;
-        $this->debug = isset($this->settings['debug']) && $this->settings['debug'] == 'yes' ? true : false;
+        $this->merchant_access_token = get_option('wc_paypal_braintree_angelleye_merchant_access_token', '');
+        $this->merchant_id = get_option('wc_paypal_braintree_angelleye_merchant_id', '');
+        $this->testmode = get_option('wc_paypal_braintree_angelleye_environment', 'sandbox') === 'sandbox';
+        $this->sandbox = get_option('wc_paypal_braintree_angelleye_environment', 'sandbox') === 'sandbox';
+        $this->debug = $this->get_option('debug') === 'yes';
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         $this->response = '';
         if ($this->enable_braintree_drop_in) {
             add_action('wp_enqueue_scripts', array($this, 'payment_scripts'), 0);
         }
         add_action('admin_notices', array($this, 'checks'));
-        $this->merchant_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
-        $this->merchant_id = get_option('wc_paypal_braintree_merchant_id', '');
 
         // Now that $this->debug is set, we can use logging
         if ($just_connected) {
@@ -72,19 +68,7 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         <table class="form-table">
             <?php $this->generate_settings_html(); ?>
         </table>
-        <script type="text/javascript">
-            jQuery('#woocommerce_braintree_sandbox').change(function () {
-                var sandbox = jQuery('#woocommerce_braintree_sandbox_public_key, #woocommerce_braintree_sandbox_private_key, #woocommerce_braintree_sandbox_merchant_id').closest('tr'),
-                        production = jQuery('#woocommerce_braintree_public_key, #woocommerce_braintree_private_key, #woocommerce_braintree_merchant_id').closest('tr');
-                if (jQuery(this).is(':checked')) {
-                    sandbox.show();
-                    production.hide();
-                } else {
-                    sandbox.hide();
-                    production.show();
-                }
-            }).change();
-        </script> <?php
+        <?php
     }
 
     public function admin_options_header() {
@@ -252,55 +236,6 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
                 'type' => 'checkbox',
                 'description' => __('Rather than showing a credit card form on your checkout, this shows the form on it\'s own page, thus making the process more secure and more PCI friendly.', 'paypal-for-woocommerce'),
                 'default' => 'no'
-            ),
-            'sandbox' => array(
-                'title' => __('Sandbox', 'paypal-for-woocommerce'),
-                'label' => __('Enable Sandbox Mode', 'paypal-for-woocommerce'),
-                'type' => 'checkbox',
-                'description' => __('Place the payment gateway in sandbox mode using sandbox API keys (real payments will not be taken).', 'paypal-for-woocommerce'),
-                'default' => 'yes'
-            ),
-            'sandbox_merchant_id' => array(
-                'title' => __('Sandbox Merchant ID', 'paypal-for-woocommerce'),
-                'type' => 'password',
-                'description' => __('Get your API keys from your Braintree account.', 'paypal-for-woocommerce'),
-                'default' => '',
-                'desc_tip' => true
-            ),
-            'sandbox_public_key' => array(
-                'title' => __('Sandbox Public Key', 'paypal-for-woocommerce'),
-                'type' => 'password',
-                'description' => __('Get your API keys from your Braintree account.', 'paypal-for-woocommerce'),
-                'default' => '',
-                'desc_tip' => true
-            ),
-            'sandbox_private_key' => array(
-                'title' => __('Sandbox Private Key', 'paypal-for-woocommerce'),
-                'type' => 'password',
-                'description' => __('Get your API keys from your Braintree account.', 'paypal-for-woocommerce'),
-                'default' => '',
-                'desc_tip' => true
-            ),
-            'merchant_id' => array(
-                'title' => __('Live Merchant ID', 'paypal-for-woocommerce'),
-                'type' => 'password',
-                'description' => __('Get your API keys from your Braintree account.', 'paypal-for-woocommerce'),
-                'default' => '',
-                'desc_tip' => true
-            ),
-            'public_key' => array(
-                'title' => __('Live Public Key', 'paypal-for-woocommerce'),
-                'type' => 'password',
-                'description' => __('Get your API keys from your Braintree account.', 'paypal-for-woocommerce'),
-                'default' => '',
-                'desc_tip' => true
-            ),
-            'private_key' => array(
-                'title' => __('Live Private Key', 'paypal-for-woocommerce'),
-                'type' => 'password',
-                'description' => __('Get your API keys from your Braintree account.', 'paypal-for-woocommerce'),
-                'default' => '',
-                'desc_tip' => true
             ),
             'debug' => array(
                 'title' => __('Debug Log', 'woocommerce'),
@@ -852,19 +787,19 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         if (empty($access_token)) {
             return false;
         }
-        $existing_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
+        $existing_access_token = get_option('wc_paypal_braintree_angelleye_merchant_access_token', '');
         if (!empty($existing_access_token)) {
             return false;
         }
-        update_option('wc_paypal_braintree_merchant_access_token', $access_token);
+        update_option('wc_paypal_braintree_angelleye_merchant_access_token', $access_token);
         $this->angelleye_braintree_lib();
         $gateway = new Braintree_Gateway(array(
             'accessToken' => $access_token,
         ));
         $merchant_id = $gateway->config->getMerchantId();
-        update_option('wc_paypal_braintree_merchant_id', $merchant_id);
+        update_option('wc_paypal_braintree_angelleye_merchant_id', $merchant_id);
         $environment = $gateway->config->getEnvironment(); // sandbox or production
-        update_option('wc_paypal_braintree_environment', $environment);
+        update_option('wc_paypal_braintree_angelleye_environment', $environment);
         $this->add_admin_notice(
                 'connected_successfully', 'updated', __('Connected successfully.', 'woocommerce-gateway-paypal-braintree')
         );
@@ -885,12 +820,12 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         if (!wp_verify_nonce($_GET['wc_paypal_braintree_admin_nonce'], 'disconnect_paypal_braintree')) {
             wp_die(__('Invalid disconnection request', 'woocommerce-gateway-paypal-braintree'));
         }
-        $existing_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
+        $existing_access_token = get_option('wc_paypal_braintree_angelleye_merchant_access_token', '');
         if (empty($existing_access_token)) {
             return false;
         }
-        delete_option('wc_paypal_braintree_merchant_access_token');
-        delete_option('wc_paypal_braintree_merchant_id');
+        delete_option('wc_paypal_braintree_angelleye_merchant_access_token');
+        delete_option('wc_paypal_braintree_angelleye_merchant_id');
         $this->add_admin_notice(
                 'disconnected_successfully', 'updated', __('Disconnected successfully.', 'woocommerce-gateway-paypal-braintree')
         );
