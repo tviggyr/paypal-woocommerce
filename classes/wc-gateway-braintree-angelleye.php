@@ -38,6 +38,21 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
             add_action('wp_enqueue_scripts', array($this, 'payment_scripts'), 0);
         }
         add_action('admin_notices', array($this, 'checks'));
+        $this->merchant_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
+        $this->merchant_id = get_option('wc_paypal_braintree_merchant_id', '');
+        $just_connected = $this->possibly_save_access_token();
+        $just_disconnected = $this->possibly_discard_access_token();
+        // Now that $this->debug is set, we can use logging
+        if ($just_connected) {
+            $this->add_log("Info: Connected to PayPal Braintree successfully. Merchant ID = {$this->merchant_id}");
+        }
+        if ($just_disconnected) {
+            $this->add_log("Info: Disconnected from PayPal Braintree.");
+        }
+        if (!$this->is_valid_for_use()) {
+            $this->enabled = 'no';
+            return;
+        }
     }
 
     /**
@@ -69,13 +84,10 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
     }
 
     public function admin_options_header() {
-
         $current_user = wp_get_current_user();
         $section_slug = strtolower(get_class($this));
-
         $production_connect_url = 'https://connect.woocommerce.com/login/braintree';
         $sandbox_connect_url = 'https://connect.woocommerce.com/login/braintreesandbox';
-
         $redirect_url = add_query_arg(
                 array(
             'page' => 'wc-settings',
@@ -84,17 +96,12 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
                 ), admin_url('admin.php')
         );
         $redirect_url = wp_nonce_url($redirect_url, 'connect_paypal_braintree', 'wc_paypal_braintree_admin_nonce');
-
-        // Note:  We doubly urlencode the redirect url to avoid Braintree's server
-        // decoding it which would cause loss of query params on the final redirect
         $query_args = array(
             'redirect' => urlencode(urlencode($redirect_url)),
             'scopes' => 'read_write'
         );
-
         $production_connect_url = add_query_arg($query_args, $production_connect_url);
         $sandbox_connect_url = add_query_arg($query_args, $sandbox_connect_url);
-
         $disconnect_url = add_query_arg(
                 array(
             'page' => 'wc-settings',
@@ -107,47 +114,47 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         ?>
         <div class='paypal-braintree-admin-header'>
             <div class='paypal-braintree-admin-brand'>
-                <img src="<?php echo plugins_url('../assets/images/branding/paypal-braintree-horizontal.png', __FILE__); ?>" />
+                <img alt="paypal braintree" src="<?php echo plugins_url('../assets/images/branding/paypal-braintree-horizontal.png', __FILE__); ?>" />
             </div>
             <div class='paypal-braintree-admin-payment-methods'>
-                <img src="<?php echo plugins_url('../assets/images/payments/visa.png', __FILE__); ?>" />
-                <img src="<?php echo plugins_url('../assets/images/payments/master-card.png', __FILE__); ?>" />
-                <img src="<?php echo plugins_url('../assets/images/payments/discover.png', __FILE__); ?>" />
-                <img src="<?php echo plugins_url('../assets/images/payments/american-express.png', __FILE__); ?>" />
-                <img src="<?php echo plugins_url('../assets/images/payments/paypal.png', __FILE__); ?>" />
+                <img alt="visa" src="<?php echo plugins_url('../assets/images/payments/visa.png', __FILE__); ?>" />
+                <img alt="master card" src="<?php echo plugins_url('../assets/images/payments/master-card.png', __FILE__); ?>" />
+                <img alt="discover" src="<?php echo plugins_url('../assets/images/payments/discover.png', __FILE__); ?>" />
+                <img alt="american express" src="<?php echo plugins_url('../assets/images/payments/american-express.png', __FILE__); ?>" />
+                <img alt="PayPal" src="<?php echo plugins_url('../assets/images/payments/paypal.png', __FILE__); ?>" />
             </div>
         </div>
         <?php if (empty($this->merchant_access_token)) { ?>
             <p class='paypal-braintree-admin-connect-prompt'>
-            <?php echo esc_html('Connect with Braintree to start accepting credit and debit card payments in your checkout.', 'woocommerce-gateway-paypal-braintree'); ?>
+                <?php echo esc_html('Connect with Braintree to start accepting credit and debit card payments in your checkout.', 'woocommerce-gateway-paypal-braintree'); ?>
                 <br/>
                 <a href="https://www.braintreepayments.com/partners/learn-more" target="_blank">
-                <?php echo esc_html('Learn more', 'woocommerce-gateway-paypal-braintree'); ?>
+                    <?php echo esc_html('Learn more', 'woocommerce-gateway-paypal-braintree'); ?>
                 </a>
             </p>
-                <?php } ?>
+        <?php } ?>
 
         <table class="form-table">
             <tbody>
                 <tr>
                     <th>
-        <?php _e('Connect/Disconnect', 'woocommerce-gateway-paypal-braintree'); ?>
+                        <?php _e('Connect/Disconnect', 'woocommerce-gateway-paypal-braintree'); ?>
                     </th>
                     <td>
                         <?php if (!empty($this->merchant_access_token)) { ?>
                             <a href="<?php echo esc_attr($disconnect_url); ?>" class='button-primary'>
-                            <?php echo esc_html__('Disconnect from PayPal Powered by Braintree', 'woocommerce-gateway-paypal-braintree'); ?>
+                                <?php echo esc_html__('Disconnect from PayPal Powered by Braintree', 'woocommerce-gateway-paypal-braintree'); ?>
                             </a>
-                            <?php } else { ?>
+                        <?php } else { ?>
                             <a href="<?php echo esc_attr($production_connect_url); ?>">
                                 <img src="<?php echo plugins_url('../assets/images/button/connect-braintree.png', __FILE__); ?>"/>
                             </a>
                             <br/>
                             <br/>
                             <a href="<?php echo esc_attr($sandbox_connect_url); ?>">
-            <?php echo esc_html__('Not ready to accept live payments? Click here to connect using sandbox mode.', 'woocommerce-gateway-paypal-braintree'); ?>
+                                <?php echo esc_html__('Not ready to accept live payments? Click here to connect using sandbox mode.', 'woocommerce-gateway-paypal-braintree'); ?>
                             </a>
-                            <?php } ?>
+                        <?php } ?>
                     </td>
                 </tr>
             </tbody>
@@ -173,18 +180,18 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         $this->add_dependencies_admin_notices();
     }
 
-    /**
-     * Check if this gateway is enabled
-     */
-    public function is_available() {
-        if ('yes' != $this->enabled) {
-            return false;
-        }
-        if (!$this->merchant_id || !$this->public_key || !$this->private_key) {
-            return false;
-        }
-        return true;
-    }
+//    /**
+//     * Check if this gateway is enabled
+//     */
+//    public function is_available() {
+//        if ('yes' != $this->enabled) {
+//            return false;
+//        }
+//        if (!$this->merchant_id || !$this->public_key || !$this->private_key) {
+//            return false;
+//        }
+//        return true;
+//    }
 
     public function validate_fields() {
         if (!$this->enable_braintree_drop_in) {
@@ -319,7 +326,11 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
     public function payment_fields() {
         $this->angelleye_braintree_lib();
         $this->add_log('Begin Braintree_ClientToken::generate Request');
-        $clientToken = Braintree_ClientToken::generate();
+        //$clientToken = Braintree_ClientToken::generate();
+        $braintree_gateway = new Braintree_Gateway(array(
+            'accessToken' => $this->merchant_access_token,
+        ));
+        $clientToken = $braintree_gateway->clientToken()->generate();
         if ($this->description) {
             echo wpautop(wptexturize($this->description));
         }
@@ -492,7 +503,11 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
                 }
                 $this->add_log('Braintree_Transaction::sale Reuest Data ' . print_r($log, true));
             }
-            $this->response = Braintree_Transaction::sale($request_data);
+//            $this->response = Braintree_Transaction::sale($request_data);
+            $gateway = new Braintree_Gateway(array(
+                'accessToken' => $this->merchant_access_token,
+            ));
+            $this->response = $gateway->transaction()->sale($request_data);
             $this->add_log('Braintree_Transaction::sale Response code: ' . print_r($this->get_status_code(), true));
             $this->add_log('Braintree_Transaction::sale Response message: ' . print_r($this->get_status_message(), true));
             if ($this->response->success) {
@@ -542,48 +557,76 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         return extension_loaded('mbstring');
     }
 
-    public function process_refund($order_id, $amount = null, $reason = '') {
+    public function process_refund($order_id, $refund_amount = null, $reason = '') {
+        $this->add_log("Beginning processing refund/void for order $order_id");
+        $this->add_log("Merchant ID = {$this->merchant_id}");
         $order = wc_get_order($order_id);
-        if (!$order || !$order->get_transaction_id()) {
+        if (!$this->can_refund_order($order)) {
+            $this->add_log("Error: Unable to refund/void order {$order_id}. Order has no transaction ID.");
             return false;
         }
-        $this->angelleye_braintree_lib();
-        $transaction = Braintree_Transaction::find($order->get_transaction_id());
-        if (isset($transaction->status) && $transaction->status == 'submitted_for_settlement') {
-            if ($amount == $order->get_total()) {
-                $result = Braintree_Transaction::void($order->get_transaction_id());
-                if ($result->success) {
-                    $order->add_order_note(sprintf(__('Refunded %s - Transaction ID: %s', 'paypal-for-woocommerce'), wc_price(number_format($amount, 2, '.', '')), $result->transaction->id));
-                    return true;
-                } else {
-                    $error = '';
-                    foreach (($result->errors->deepAll()) as $error) {
-                        return new WP_Error('ec_refund-error', $error->message);
-                    }
-                }
-            } else {
-                return new WP_Error('braintree_refund-error', __('Oops, you cannot partially void this order. Please use the full order amount.', 'paypal-for-woocommerce'));
-            }
-        } elseif (isset($transaction->status) && ($transaction->status == 'settled' || $transaction->status == 'settling')) {
-            $result = Braintree_Transaction::refund($order->get_transaction_id(), $amount);
-            if ($result->success) {
-                $order->add_order_note(sprintf(__('Refunded %s - Transaction ID: %s', 'paypal-for-woocommerce'), wc_price(number_format($amount, 2, '.', '')), $result->transaction->id));
-                return true;
-            } else {
-                $error = '';
-                foreach (($result->errors->deepAll()) as $error) {
-                    return new WP_Error('ec_refund-error', $error->message);
-                }
-            }
+        if (!$refund_amount) {
+            $refund_amount = floatval($order->get_total());
         }
+        $this->add_log("Amount = {$refund_amount}");
+        $transaction_id = $order->get_transaction_id();
+        $this->angelleye_braintree_lib();
+        $gateway = new Braintree_Gateway(array(
+            'accessToken' => $this->merchant_access_token,
+        ));
+        try {
+            $transaction = $gateway->transaction()->find($transaction_id);
+        } catch (Exception $e) {
+            $this->add_log("Error: Unable to find transaction with transaction ID {$transaction_id}");
+            return false;
+        }
+        $this->add_log("Order {$order_id} with transaction ID {$transaction_id} has status {$transaction->status}");
+        $action_to_take = '';
+        switch ($transaction->status) {
+            case Braintree_Transaction::AUTHORIZED :
+            case Braintree_Transaction::SUBMITTED_FOR_SETTLEMENT :
+            case Braintree_Transaction::SETTLEMENT_PENDING :
+                $action_to_take = "void";
+                break;
+            case Braintree_Transaction::SETTLED :
+            case Braintree_Transaction::SETTLING :
+                $action_to_take = "refund";
+                break;
+        }
+        if (empty($action_to_take)) {
+            $this->add_log("Error: The transaction cannot be voided nor refunded in its current state: state = {$transaction->status}");
+            return false;
+        }
+        if ("void" === $action_to_take) {
+            $result = $gateway->transaction()->void($transaction_id);
+        } else {
+            $result = $gateway->transaction()->refund($transaction_id, $refund_amount);
+        }
+        if (!$result->success) {
+            $this->add_log("Error: The transaction cannot be voided nor refunded - reason: = {$result->message}");
+            return false;
+        }
+        $latest_transaction_id = $result->transaction->id;
+        if ("void" === $action_to_take) {
+            $order->add_order_note(
+                    sprintf(
+                            __('Voided - Void ID: %s - Reason: %s', 'woocommerce-gateway-paypal-braintree'), $latest_transaction_id, $reason
+                    )
+            );
+            $this->add_log("Successfully voided order {$order_id}");
+        } else {
+            $order->add_order_note(
+                    sprintf(
+                            __('Refunded %s - Refund ID: %s - Reason: %s', 'woocommerce-gateway-paypal-braintree'), wc_price($refund_amount), $latest_transaction_id, $reason
+                    )
+            );
+            $this->add_log(__FUNCTION__, "Info: Successfully refunded {$refund_amount} for order {$order_id}");
+        }
+        return true;
     }
 
     public function angelleye_braintree_lib() {
         require_once( 'lib/Braintree/Braintree.php' );
-        Braintree_Configuration::environment($this->environment);
-        Braintree_Configuration::merchantId($this->merchant_id);
-        Braintree_Configuration::publicKey($this->public_key);
-        Braintree_Configuration::privateKey($this->private_key);
     }
 
     public function add_dependencies_admin_notices() {
@@ -801,18 +844,255 @@ class WC_Gateway_Braintree_AngellEYE extends WC_Payment_Gateway {
         if (!is_checkout() || !$this->is_available()) {
             return;
         }
-//        $this->angelleye_braintree_lib();
-//        $this->add_log('Begin Braintree_ClientToken::generate Request');
-//        $clientToken = Braintree_ClientToken::generate();
-//        if (isset($clientToken) && !empty($clientToken)) {
-//            $this->add_log('Braintree_ClientToken::generate Response: ' . '**************************************************************');
-//        }
-//        $suffix = ''; //defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
         wp_enqueue_script('braintree-gateway', 'https://js.braintreegateway.com/v2/braintree.js', array(), WC_VERSION, false);
-//        wp_enqueue_script('wc-braintree-gateway', plugins_url('assets/js/braintree-gateway' . $suffix . '.js', __DIR__), array('jquery', 'braintree-gateway'), WC_VERSION, false);
-//        wp_localize_script('wc-braintree-gateway', 'Braintree_commerce_params', array(
-//            'key' => $clientToken
-//        ));
+    }
+
+    public function possibly_save_access_token() {
+        if (!is_admin() || !is_user_logged_in()) {
+            return false;
+        }
+        if (!isset($_GET['braintree_access_token'])) {
+            return false;
+        }
+        if (!isset($_GET['wc_paypal_braintree_admin_nonce'])) {
+            return false;
+        }
+        if (!wp_verify_nonce($_GET['wc_paypal_braintree_admin_nonce'], 'connect_paypal_braintree')) {
+            wp_die(__('Invalid connection request', 'woocommerce-gateway-paypal-braintree'));
+        }
+        $access_token = isset($_GET['braintree_access_token']) ? sanitize_text_field(urldecode($_GET['braintree_access_token'])) : '';
+        if (empty($access_token)) {
+            return false;
+        }
+        $existing_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
+        if (!empty($existing_access_token)) {
+            return false;
+        }
+        update_option('wc_paypal_braintree_merchant_access_token', $access_token);
+        $this->angelleye_braintree_lib();
+        $gateway = new Braintree_Gateway(array(
+            'accessToken' => $access_token,
+        ));
+        $merchant_id = $gateway->config->getMerchantId();
+        update_option('wc_paypal_braintree_merchant_id', $merchant_id);
+        $environment = $gateway->config->getEnvironment(); // sandbox or production
+        update_option('wc_paypal_braintree_environment', $environment);
+        //wc_add_notice(__('Connected successfully.', 'woocommerce-gateway-paypal-braintree'));
+        return true;
+    }
+
+    public function possibly_discard_access_token() {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+        $disconnect_paypal_braintree = isset($_GET['disconnect_paypal_braintree']);
+        if (!$disconnect_paypal_braintree) {
+            return false;
+        }
+        if (!isset($_GET['wc_paypal_braintree_admin_nonce'])) {
+            return false;
+        }
+        if (!wp_verify_nonce($_GET['wc_paypal_braintree_admin_nonce'], 'disconnect_paypal_braintree')) {
+            wp_die(__('Invalid disconnection request', 'woocommerce-gateway-paypal-braintree'));
+        }
+        $existing_access_token = get_option('wc_paypal_braintree_merchant_access_token', '');
+        if (empty($existing_access_token)) {
+            return false;
+        }
+        delete_option('wc_paypal_braintree_merchant_access_token');
+        delete_option('wc_paypal_braintree_merchant_id');
+        //wc_add_notice(__('Disconnected successfully.', 'woocommerce-gateway-paypal-braintree'));
+        return true;
+    }
+
+    /**
+     * Don't allow use of this extension if the currency is not supported or if setup is incomplete
+     *
+     * @since 1.0.0
+     */
+    function is_valid_for_use() {
+        if (!is_ssl() && !$this->sandbox) {
+            return false;
+        }
+
+        if (!$this->is_shop_currency_supported()) {
+            return false;
+        }
+
+        if (empty($this->merchant_access_token)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function is_shop_currency_supported() {
+
+        $supported_currencies = array(
+            'AED', // United Arab Emirates Dirham
+            'AFN', // Afghan Afghani
+            'ALL', // Albanian Lek
+            'AMD', // Armenian Dram
+            'ANG', // Netherlands Antillean Gulden
+            'AOA', // Angolan Kwanza
+            'ARS', // Argentine Peso
+            'AUD', // Australian Dollar
+            'AWG', // Aruban Florin
+            'AZN', // Azerbaijani Manat
+            'BAM', // Bosnia and Herzegovina Convertible Mark
+            'BBD', // Barbadian Dollar
+            'BDT', // Bangladeshi Taka
+            'BGN', // Bulgarian Lev
+            'BHD', // Bahraini Dinar
+            'BIF', // Burundian Franc
+            'BMD', // Bermudian Dollar
+            'BND', // Brunei Dollar
+            'BOB', // Bolivian Boliviano
+            'BRL', // Brazilian Real
+            'BSD', // Bahamian Dollar
+            'BTN', // Bhutanese Ngultrum
+            'BWP', // Botswana Pula
+            'BYR', // Belarusian Ruble
+            'BZD', // Belize Dollar
+            'CAD', // Canadian Dollar
+            'CDF', // Congolese Franc
+            'CHF', // Swiss Franc
+            'CLP', // Chilean Peso
+            'CNY', // Chinese Renminbi Yuan
+            'COP', // Colombian Peso
+            'CRC', // Costa Rican Colón
+            'CUC', // Cuban Convertible Peso
+            'CUP', // Cuban Peso
+            'CVE', // Cape Verdean Escudo
+            'CZK', // Czech Koruna
+            'DJF', // Djiboutian Franc
+            'DKK', // Danish Krone
+            'DOP', // Dominican Peso
+            'DZD', // Algerian Dinar
+            'EEK', // Estonian Kroon
+            'EGP', // Egyptian Pound
+            'ERN', // Eritrean Nakfa
+            'ETB', // Ethiopian Birr
+            'EUR', // Euro
+            'FJD', // Fijian Dollar
+            'FKP', // Falkland Pound
+            'GBP', // British Pound
+            'GEL', // Georgian Lari
+            'GHS', // Ghanaian Cedi
+            'GIP', // Gibraltar Pound
+            'GMD', // Gambian Dalasi
+            'GNF', // Guinean Franc
+            'GTQ', // Guatemalan Quetzal
+            'GYD', // Guyanese Dollar
+            'HKD', // Hong Kong Dollar
+            'HNL', // Honduran Lempira
+            'HRK', // Croatian Kuna
+            'HTG', // Haitian Gourde
+            'HUF', // Hungarian Forint
+            'IDR', // Indonesian Rupiah
+            'ILS', // Israeli New Sheqel
+            'INR', // Indian Rupee
+            'IQD', // Iraqi Dinar
+            'IRR', // Iranian Rial
+            'ISK', // Icelandic Króna
+            'JMD', // Jamaican Dollar
+            'JOD', // Jordanian Dinar
+            'JPY', // Japanese Yen
+            'KES', // Kenyan Shilling
+            'KGS', // Kyrgyzstani Som
+            'KHR', // Cambodian Riel
+            'KMF', // Comorian Franc
+            'KPW', // North Korean Won
+            'KRW', // South Korean Won
+            'KWD', // Kuwaiti Dinar
+            'KYD', // Cayman Islands Dollar
+            'KZT', // Kazakhstani Tenge
+            'LAK', // Lao Kip
+            'LBP', // Lebanese Lira
+            'LKR', // Sri Lankan Rupee
+            'LRD', // Liberian Dollar
+            'LSL', // Lesotho Loti
+            'LTL', // Lithuanian Litas
+            'LVL', // Latvian Lats
+            'LYD', // Libyan Dinar
+            'MAD', // Moroccan Dirham
+            'MDL', // Moldovan Leu
+            'MGA', // Malagasy Ariary
+            'MKD', // Macedonian Denar
+            'MMK', // Myanmar Kyat
+            'MNT', // Mongolian Tögrög
+            'MOP', // Macanese Pataca
+            'MRO', // Mauritanian Ouguiya
+            'MUR', // Mauritian Rupee
+            'MVR', // Maldivian Rufiyaa
+            'MWK', // Malawian Kwacha
+            'MXN', // Mexican Peso
+            'MYR', // Malaysian Ringgit
+            'MZN', // Mozambican Metical
+            'NAD', // Namibian Dollar
+            'NGN', // Nigerian Naira
+            'NIO', // Nicaraguan Córdoba
+            'NOK', // Norwegian Krone
+            'NPR', // Nepalese Rupee
+            'NZD', // New Zealand Dollar
+            'OMR', // Omani Rial
+            'PAB', // Panamanian Balboa
+            'PEN', // Peruvian Nuevo Sol
+            'PGK', // Papua New Guinean Kina
+            'PHP', // Philippine Peso
+            'PKR', // Pakistani Rupee
+            'PLN', // Polish Złoty
+            'PYG', // Paraguayan Guaraní
+            'QAR', // Qatari Riyal
+            'RON', // Romanian Leu
+            'RSD', // Serbian Dinar
+            'RUB', // Russian Ruble
+            'RWF', // Rwandan Franc
+            'SAR', // Saudi Riyal
+            'SBD', // Solomon Islands Dollar
+            'SCR', // Seychellois Rupee
+            'SDG', // Sudanese Pound
+            'SEK', // Swedish Krona
+            'SGD', // Singapore Dollar
+            'SHP', // Saint Helenian Pound
+            'SKK', // Slovak Koruna
+            'SLL', // Sierra Leonean Leone
+            'SOS', // Somali Shilling
+            'SRD', // Surinamese Dollar
+            'STD', // São Tomé and Príncipe Dobra
+            'SVC', // Salvadoran Colón
+            'SYP', // Syrian Pound
+            'SZL', // Swazi Lilangeni
+            'THB', // Thai Baht
+            'TJS', // Tajikistani Somoni
+            'TMM', // Turkmenistani Manat
+            'TMT', // Turkmenistani Manat
+            'TND', // Tunisian Dinar
+            'TOP', // Tongan Paʻanga
+            'TRY', // Turkish New Lira
+            'TTD', // Trinidad and Tobago Dollar
+            'TWD', // New Taiwan Dollar
+            'TZS', // Tanzanian Shilling
+            'UAH', // Ukrainian Hryvnia
+            'UGX', // Ugandan Shilling
+            'USD', // United States Dollar
+            'UYU', // Uruguayan Peso
+            'UZS', // Uzbekistani Som
+            'VEF', // Venezuelan Bolívar
+            'VND', // Vietnamese Đồng
+            'VUV', // Vanuatu Vatu
+            'WST', // Samoan Tala
+            'XAF', // Central African Cfa Franc
+            'XCD', // East Caribbean Dollar
+            'XOF', // West African Cfa Franc
+            'XPF', // Cfp Franc
+            'YER', // Yemeni Rial
+            'ZAR', // South African Rand
+            'ZMK', // Zambian Kwacha
+            'ZWD'  // Zimbabwean Dollar
+        );
+
+        return ( in_array(get_woocommerce_currency(), $supported_currencies) );
     }
 
 }

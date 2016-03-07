@@ -482,8 +482,12 @@ class AngellEYE_Utility {
 
     public function angelleye_woocommerce_payment_gateway_supports($boolean, $feature, $current) {
         global $post;
-        $order_id = $post->ID;
-        if ($current->id == 'paypal_express' || $current->id == 'paypal_pro' ) {
+        if( isset($post->ID) && !empty($post->ID)) {
+            $order_id = $post->ID;
+        } else {
+            return $boolean;
+        }
+        if ( isset($order_id) && ($current->id == 'paypal_express' || $current->id == 'paypal_pro' )) {
             $payment_action = get_post_meta($order_id, '_payment_action', true);
             if($payment_action == 'Sale' || $payment_action == 'DoCapture') {
                 return $boolean;
