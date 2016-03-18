@@ -1777,7 +1777,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
             'insuranceoptionoffered' => '', // If true, the insurance drop-down on the PayPal review page displays the string 'Yes' and the insurance amount.  If true, the total shipping insurance for this order must be a positive number.
             'handlingamt' => '', // Total handling costs for this order.  If you specify HANDLINGAMT you mut also specify a value for ITEMAMT.
             'desc' => '', // Description of items on the order.  127 char max.
-            'custom' => '', // Free-form field for your own use.  256 char max.
+            'custom' => apply_filters( 'ae_ppec_custom_parameter', '', $order ), // Free-form field for your own use.  256 char max.
             'invnum' => $this->invoice_id_prefix . $invoice_number, // Your own invoice or tracking number.  127 char max.
             'notifyurl' => $this->notifyurl, // URL for receiving Instant Payment Notifications
             'shiptoname' => $shipping_first_name . ' ' . $shipping_last_name, // Required if shipping is included.  Person's name associated with this address.  32 char max.
