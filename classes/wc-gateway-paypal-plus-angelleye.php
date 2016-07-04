@@ -288,7 +288,7 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
             "buttonLocation": "outside",
             <?php if (get_locale() != ''): ?>
                 "country":  <?php echo '"', substr(get_locale(), -2), '"'; ?>,
-                "language": <?php echo '"', get_locale(), '"'; ?>,
+                "language": <?php echo '"', substr(get_locale(), 0, 5), '"'; ?>,
             <?php endif; ?>
             "mode": "<?php echo strtolower($this->mode); ?>",
             <?php if (isset($third_party)): //check if we have third party payment  ?>
