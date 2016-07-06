@@ -505,6 +505,7 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
                     ->setValue(json_decode('{
                     "recipient_name": "' . $order->shipping_first_name . ' ' . $order->shipping_last_name . '",
                     "line1": "' . $order->shipping_address_1 . '",
+                    "line2": "' . $order->shipping_address_2 . '",
                     "city": "' . $order->shipping_city . '",
                     "state": "' . $order->shipping_state . '",
                     "postal_code": "' . $order->shipping_postcode . '",
