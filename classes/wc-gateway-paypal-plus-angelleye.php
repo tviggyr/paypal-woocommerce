@@ -465,6 +465,10 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
             if ($payment->state == "created" && $payment->payer->payment_method == "paypal") {
                 WC()->session->paymentId = $payment->id; //set payment id for later use, we need this to execute payment
                 return isset($payment->links[1]->href) ? $payment->links[1]->href : false;
+            } else {
+                wc_add_notice(__("Error processing checkout. Please try again. ", 'paypal-for-woocommerce'), 'error');
+                wp_redirect($woocommerce->cart->get_cart_url());
+                exit;
             }
         } catch (PayPal\Exception\PayPalConnectionException $ex) {
             return false;
