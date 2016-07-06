@@ -52,7 +52,7 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
         $this->invoice_prefix = $this->settings['invoice_prefix'];
         $this->send_items = 'yes';
         $this->billing_address = isset($this->settings['billing_address']) ? $this->settings['billing_address'] : 'no';
-        $this->cancel_url = isset($this->settings['cancel_url']) ? $this->settings['cancel_url'] : site_url();
+        $this->cancel_url = $this->get_option('cancel_url', wc_get_checkout_url());
         $this->allowed_currencies = apply_filters('woocommerce_paypal_plus_allowed_currencies', array('EUR', 'CAD'));
         $this->enabled = $this->settings['enabled'];
         $this->landing_page = isset($this->settings['landing_page']) ? $this->settings['landing_page'] : 'Login';
@@ -256,8 +256,9 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
      * @return void
      * */
         public function render_iframe() {
-        if (!$this->is_available() || WC()->cart->total <= 0)
+        if (!$this->is_available() || WC()->cart->total <= 0) {
             return;
+        }
         //display the form in IFRAME, if it is layout C, otherwise redirect to paypal site
         //define the redirection url
         $location = $this->get_approvalurl();
@@ -278,7 +279,7 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
         ?>
         <script src="https://www.paypalobjects.com/webstatic/ppplus/ppplus.min.js"type="text/javascript"></script>
 
-        <div id="ppplus"><?php echo __('Loading payment gates ...', 'paypal-for-woocommerce'); ?> </div>
+        <div id="ppplus"></div>
 
         <script type="application/javascript">
             var ppp = PAYPAL.apps.PPP({
@@ -418,7 +419,6 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
             $redirectUrls->setReturnUrl($this->relay_response_url);
             $redirectUrls->setCancelUrl($this->cancel_url);
 
-
             $payer = new Payer();
             $payer->setPaymentMethod("paypal");
 
@@ -446,7 +446,7 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
             $payment = new Payment();
             if (empty(WC()->session->experience_profile_id)) {
                 WC()->session->experience_profile_id = $this->create_web_experience_profile();
-                if(!empty(WC()->session->experience_profile_id)) {
+                if(WC()->session->experience_profile_id) {
                     $payment->setExperienceProfileId(WC()->session->experience_profile_id);
                 }
             } else {
@@ -464,19 +464,12 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
             //if payment method was PayPal, we need to redirect user to PayPal approval URL
             if ($payment->state == "created" && $payment->payer->payment_method == "paypal") {
                 WC()->session->paymentId = $payment->id; //set payment id for later use, we need this to execute payment
-
-                return $payment->links[1]->href;
+                return isset($payment->links[1]->href) ? $payment->links[1]->href : false;
             }
         } catch (PayPal\Exception\PayPalConnectionException $ex) {
-            wc_add_notice(__("Error processing checkout. Please try again. ", 'paypal-for-woocommerce'), 'error');
-            $this->add_log($ex->getData());
-            wp_redirect($woocommerce->cart->get_cart_url());
-            exit;
+            return false;
         } catch (Exception $ex) {
-            wc_add_notice(__("Error processing checkout. Please try again. ", 'paypal-for-woocommerce'), 'error');
-            $this->add_log($ex->getMessage());
-            wp_redirect($woocommerce->cart->get_cart_url());
-            exit;
+            return false;
         }
     }
 
@@ -727,8 +720,6 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
         $default  = wc_get_base_location();
         $country  = $default['country'];
         
-        
-        
         $flowConfig = new \PayPal\Api\FlowConfig();
         
         $flowConfig->setLandingPageType($this->landing_page);
@@ -761,15 +752,9 @@ class WC_Gateway_PayPal_Plus_AngellEYE extends WC_Payment_Gateway {
             $createProfileResponse = $webProfile->create($this->getAuth());
             return $createProfileResponse->getId();
         }  catch (PayPal\Exception\PayPalConnectionException $ex) {
-                wc_add_notice(__("Error processing checkout. Please try again. ", 'paypal-for-woocommerce'), 'error');
-                $this->add_log($ex->getData());
-                wp_redirect($woocommerce->cart->get_cart_url());
-                exit;
+               return false;
             } catch (Exception $ex) {
-                $this->add_log($ex->getMessage()); // Prints the Error Code
-                wc_add_notice(__("Error processing checkout. Please try again.", 'paypal-for-woocommerce'), 'error');
-                wp_redirect($woocommerce->cart->get_cart_url());
-                exit;
+               return false; 
             }
     }
     
