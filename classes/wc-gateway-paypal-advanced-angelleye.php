@@ -999,5 +999,4 @@ class WC_Gateway_PayPal_Advanced_AngellEYE extends WC_Payment_Gateway {
         }
         return html_entity_decode($item_desc, ENT_NOQUOTES, 'UTF-8');
     }
-
 }
