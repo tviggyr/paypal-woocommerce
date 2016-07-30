@@ -806,4 +806,5 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
             return $default_fields;
         }
     }
+    
 }

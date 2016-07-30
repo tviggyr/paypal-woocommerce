@@ -1270,4 +1270,13 @@ class WC_Gateway_PayPal_Pro_AngellEYE extends WC_Payment_Gateway
             return $default_fields;
         }
     }
+    
+    public function get_transaction_url( $order ) {
+        if (  $this->testmode == 'yes' ) {
+                $this->view_transaction_url = 'https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_view-a-trans&id=%s';
+        } else {
+                $this->view_transaction_url = 'https://www.paypal.com/cgi-bin/webscr?cmd=_view-a-trans&id=%s';
+        }
+        return parent::get_transaction_url( $order );
+    }
 }
