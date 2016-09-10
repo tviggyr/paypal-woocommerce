@@ -542,8 +542,8 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                 'default' => 'no'
             ),
             'disable_term' => array(
-                'title' => __('Skip Terms and Conditions', 'paypal-for-woocommerce'),
-                'label' => __('Enables the option to skip the Terms and Conditions.', 'paypal-for-woocommerce'),
+                'title' => __('Disable Terms and Conditions for Express Checkout', 'paypal-for-woocommerce'),
+                'label' => __('Enables the option to Disable Terms and Conditions for Express Checkout.', 'paypal-for-woocommerce'),
                 'description' => __('By default, users will be returned from PayPal and presented with a final review page which includes shipping and tax in the order details.  Enable this option to eliminate this page in the checkout process.'),
                 'type' => 'checkbox',
                 'default' => 'no',
