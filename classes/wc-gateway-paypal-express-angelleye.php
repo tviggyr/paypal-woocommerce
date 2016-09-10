@@ -59,6 +59,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
         $this->use_wp_locale_code = isset($this->settings['use_wp_locale_code']) ? $this->settings['use_wp_locale_code'] : '';
         $this->angelleye_skip_text = isset($this->settings['angelleye_skip_text']) ? $this->settings['angelleye_skip_text'] : '';
         $this->skip_final_review = isset($this->settings['skip_final_review']) ? $this->settings['skip_final_review'] : '';
+        $this->disable_term = $this->get_option('disable_term', 'no');
         $this->payment_action = $this->get_option('payment_action', 'Sale');
         $this->billing_address = isset($this->settings['billing_address']) ? $this->settings['billing_address'] : 'no';
         $this->send_items = isset($this->settings['send_items']) && $this->settings['send_items'] == 'no' ? false : true;
@@ -121,6 +122,48 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
             add_action( 'angelleye_wc_eu_vat_number', array('WC_EU_VAT_Number', 'process_checkout'), 10);
         }
         
+    }
+    
+    /**
+    * Admin Panel Options
+    */
+    public function admin_options() {
+        $guest_checkout = get_option('woocommerce_enable_guest_checkout', 'yes');
+        if ( wc_get_page_id( 'terms' ) > 0 && apply_filters( 'woocommerce_checkout_show_terms', true ) ) {
+            if($guest_checkout === 'yes') {
+                $display_disable_terms = 'yes';
+            } else {
+                $display_disable_terms = 'no';
+            }
+        } else {
+            $display_disable_terms = 'no';
+        }
+        ?>
+        <h3><?php _e('PayPal Express Checkout', 'paypal-for-woocommerce'); ?></h3>
+        <p><?php _e($this->method_description, 'paypal-for-woocommerce'); ?></p>
+        <table class="form-table">
+            <?php $this->generate_settings_html(); ?>
+            <script type="text/javascript">
+                var display_disable_terms = "<?php echo $display_disable_terms; ?>";
+                <?php
+                if( $guest_checkout === 'no' ) { ?>
+                    jQuery("#woocommerce_paypal_express_skip_final_review").prop("checked", false);
+                    jQuery("#woocommerce_paypal_express_skip_final_review").attr("disabled", true);
+                <?php } ?>
+                jQuery('#woocommerce_paypal_express_skip_final_review').change(function () {
+                    disable_term = jQuery('#woocommerce_paypal_express_disable_term').closest('tr');
+                    if (jQuery(this).is(':checked')) {
+                        if(display_disable_terms === 'yes') {
+                            disable_term.show();
+                        } else {
+                            disable_term.hide();
+                        }
+                    } else {
+                        disable_term.hide();
+                    }
+                }).change();
+            </script>
+        </table> <?php
     }
 
     /**
@@ -193,6 +236,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
     function init_form_fields() {
 
         $require_ssl = '';
+        $display_disable_terms = false;
         if (!AngellEYE_Gateway_Paypal::is_ssl()) {
             $require_ssl = __('This image requires an SSL host.  Please upload your image to <a target="_blank" href="http://www.sslpic.com">www.sslpic.com</a> and enter the image URL here.', 'paypal-for-woocommerce');
         }
@@ -203,6 +247,10 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
         } else {
             $skip_final_review_option_not_allowed = '';
         }
+        
+       
+        
+        
 
         $args = array(
             'sort_order' => 'ASC',
@@ -489,9 +537,17 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
             'skip_final_review' => array(
                 'title' => __('Skip Final Review', 'paypal-for-woocommerce'),
                 'label' => __('Enables the option to skip the final review page.', 'paypal-for-woocommerce'),
-                'description' => __('By default, users will be returned from PayPal and presented with a final review page which includes shipping and tax in the order details.  Enable this option to eliminate this page in the checkout process.' . $skip_final_review_option_not_allowed),
+                'description' => __('By default, users will be returned from PayPal and presented with a final review page which includes shipping and tax in the order details.  Enable this option to eliminate this page in the checkout process.') . '<b class="final_review_notice">' . $skip_final_review_option_not_allowed . '</b>',
                 'type' => 'checkbox',
                 'default' => 'no'
+            ),
+            'disable_term' => array(
+                'title' => __('Skip Terms and Conditions', 'paypal-for-woocommerce'),
+                'label' => __('Enables the option to skip the Terms and Conditions.', 'paypal-for-woocommerce'),
+                'description' => __('By default, users will be returned from PayPal and presented with a final review page which includes shipping and tax in the order details.  Enable this option to eliminate this page in the checkout process.'),
+                'type' => 'checkbox',
+                'default' => 'no',
+                'class' => 'disable_term',
             ),
             'payment_action' => array(
                 'title' => __('Payment Action', 'paypal-for-woocommerce'),
@@ -898,7 +954,7 @@ class WC_Gateway_PayPal_Express_AngellEYE extends WC_Payment_Gateway {
                 if( $this->skip_final_review == 'yes' && ( get_option('woocommerce_enable_guest_checkout') === "yes" || apply_filters('woocommerce_enable_guest_checkout', get_option('woocommerce_enable_guest_checkout')) == "yes" || is_user_logged_in() ) ) {
                     //check terms enable
                     $checkout_form_data = maybe_unserialize(WC()->session->checkout_form);
-                    if (!( wc_get_page_id( 'terms' ) > 0 && apply_filters( 'woocommerce_checkout_show_terms', true ) && empty( $checkout_form_data['terms'] ))) {
+                    if ($this->disable_term == 'yes' || ( !( wc_get_page_id( 'terms' ) > 0 && apply_filters( 'woocommerce_checkout_show_terms', true ) && empty( $checkout_form_data['terms'] )))) {
                         $url = add_query_arg(array( 'pp_action' => 'payaction'));
                         wp_redirect($url);
                         exit();
