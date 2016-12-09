@@ -83,7 +83,15 @@ class WC_Gateway_PayPal_Pro_PayFlow_AngellEYE extends WC_Payment_Gateway_CC {
                 add_action('woocommerce_credit_card_form_start', array($this, 'angelleye_woocommerce_credit_card_form_start'), 10, 1);
             }
             
-            $this->customer_id;
+            $this->enable_silentposturl = $this->get_option('enable_silentposturl', 'no');
+            $this->silentposturl = '';
+            if($this->enable_silentposturl == 'yes') {
+                $this->silentposturl = $this->get_option('silentposturl'); 
+                if( !empty($this->silentposturl) ) {
+                    $this->silentposturl =  str_replace('&amp;', '&', $this->silentposturl);
+                }
+            }
+            
 	}
     
     
@@ -241,6 +249,20 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
                 'description' => __('Allow buyers to securely save payment details to their account for quick checkout / auto-ship orders in the future.', 'paypal-for-woocommerce'),
                 'default' => 'no',
                 'class' => 'enable_tokenized_payments'
+            ),
+            'enable_silentposturl' => array(
+                'title' => __('Enable PayPal SILENTPOSTURL', 'paypal-for-woocommerce'),
+                'label' => __('Configure an SILENTPOSTURL URL to be included with PayFlow payments.', 'paypal-for-woocommerce'),
+                'type' => 'checkbox',
+                'description' => __('This will override any URL configured in your PayPal account profile.', 'paypal-for-woocommerce'),
+                'default' => 'no',
+                'class' => 'angelleye_enable_silentposturl'
+            ),
+            'silentposturl' => array(
+                'title' => __('PayPal SILENTPOSTURL URL', 'paypal-for-woocommerce'),
+                'type' => 'text',
+                'description' => __('The URL to which the Gateway will send Silent Post for transactions.', 'paypal-for-woocommerce'),
+                'class' => 'angelleye_silentposturl'
             ),
             'enable_cardholder_first_last_name' => array(
                 'title' => __('Enable Cardholder Name', 'paypal-for-woocommerce'),
@@ -429,7 +451,8 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
 					'endtime'=>'', 				// For inquiry transaction when using CUSTREF to specify the transaction.
 					'securetoken'=>'', 			// Required if using secure tokens.  A value the Payflow server created upon your request for storing transaction data.  32 char
 					'partialauth'=>'', 			// Required for partial authorizations.  Set to Y to submit a partial auth.    
-					'authcode'=>'' 			// Rrequired for voice authorizations.  Returned only for approved voice authorization transactions.  AUTHCODE is the approval code received over the phone from the processing network.  6 char max
+					'authcode'=>'', 			// Rrequired for voice authorizations.  Returned only for approved voice authorization transactions.  AUTHCODE is the approval code received over the phone from the processing network.  6 char max
+                                        'silentposturl' => $this->silentposturl
 					);
 			
 			/**
@@ -973,7 +996,8 @@ for the Payflow SDK. If you purchased your account directly from PayPal, use Pay
             'endtime' => '',
             'securetoken' => '',
             'partialauth' => '',
-            'authcode' => ''
+            'authcode' => '',
+            'silentposturl' => $this->silentposturl
         );
         $PayPalResult = $PayPal->ProcessTransaction($PayPalRequestData);
         if(isset($PayPalResult['RESULT']) && ($PayPalResult['RESULT'] == 0 || $PayPalResult['RESULT'] == 126)) {

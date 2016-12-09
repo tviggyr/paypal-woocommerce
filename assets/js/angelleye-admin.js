@@ -231,6 +231,15 @@ jQuery(document).ready(function ($) {
                     }
                 }).change();
                 
+                 jQuery('.angelleye_enable_silentposturl').change(function () {
+                    var angelleye_silentposturl = jQuery('.angelleye_silentposturl').closest('tr');
+                    if (jQuery(this).is(':checked')) {
+                        angelleye_silentposturl.show();
+                    } else {
+                        angelleye_silentposturl.hide();
+                    }
+                }).change();
+                
                 jQuery('.order_cancellations').change(function () {
                     var email_notify_order_cancellations = jQuery('.email_notify_order_cancellations').closest('tr');
                     if (jQuery(this).val() !== 'disabled') {
